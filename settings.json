@@ -1,0 +1,15 @@
+{
+
+    "_comment1": "LATITUDE AND LONGITUDE OF YOUR CITY, TO PREDICT WEATHER. GET IT FROM GOOGLE MAPS",
+    "latitude": 28.61,
+    "longitude": 77.21,
+
+
+    "_comment2": "Change if you like being warm or cold. Higher value = Warmer Clothes, Lower value = Colder Clothes. Default is 5", 
+    "personal_temp": 5,
+    
+    "warm_stuff_top": ["jacket", "coat", "cardigan", "sweater", "hoodie", "parka", "windbreaker", "turtleneck", "blazer", "ski","sweatshirt","coat","vest"],
+    "cool_stuff_top": ["t-shirt", "jersey", "shirt", "polo", "tank top", "vest"],
+    "warm_stuff_bottom": ["jeans", "trousers", "pants"]
+
+}
