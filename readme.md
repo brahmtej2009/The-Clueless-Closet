@@ -20,6 +20,8 @@ I personally stay within 2-3 meters range of the camera, ensuring it can see me 
 
 Strong colored lighting from your back may effect accuracy, and you may get roasted without reason.
 
+Wearing stuff which is mostly white would cause issues, as white color is quite hard to detect if it is a jacket or a tshirt or a labcoat. Please avoid those, this is just a fun project.
+
 # Setup
 > This is tested for Windows Environments ONLY! It may not work correctly in Linux or other OS.
 
