@@ -209,15 +209,14 @@ def checkimg():
             additional.append(i["label"].lower())
             print(i["score"], i["label"])
     if len(additional)==0:
-        additional=["No additional items, like raincoat or umbrella, were detected. No snow related items were detected either."]        
+        additional=["No additional items, like raincoat or umbrella, were detected. No snow protection related items were detected either."]        
             
     
     print(f"Top Predictions: {top}")
     print(f"Bottom Predictions: {bottom}")
     print(f"Additional Predictions: {additional}")
     
-    result.delete("1.0", END)
-    result.insert(END, roast())
+    update_display(roast())
     
     """        
 
@@ -259,6 +258,21 @@ def checkimg():
     if warm_top: #We give priority to warm top, because you could have a Jacket and a shirt. Jacket is more important.
         cool_top=False"""
 
+def update_display(roast_text):
+    # This function is AI Generated to combine properly with my code and the AI generated UI
+    # Update Detections
+    detect_box.config(state=NORMAL)
+    detect_box.delete("1.0", END)
+    detect_box.insert(END, f"TOP: {', '.join(top)}\nBOTTOM: {', '.join(bottom)}\nEXTRAS: {', '.join(additional)}")
+    detect_box.config(state=DISABLED)
+    
+    # Update Roast
+    result.config(state=NORMAL)
+    result.delete("1.0", END)
+    result.insert(END, roast_text)
+    result.config(state=DISABLED)
+
+
 def roast():
     top_str = ", ".join(top) if isinstance(top, list) else str(top)
     bottom_str = ", ".join(bottom) if isinstance(bottom, list) else str(bottom)
@@ -280,7 +294,6 @@ Rules:
 - Be brutal, Shame them if their fit does not match their weather. If they dont have the right gear for the weather, Include extra sentence to Extra Shame on that. 
 - NO poetic metaphors. Max 3 Brief SHORT sentences. DO not exceed word limit of 60. No Censorship. Simple Human Brutal English, Shame and Insult me.<|im_end|>
 <|im_start|>user
-Example: You are seriously soo dumb, that you think wearing a thin shirt is going to protect you from the literall snow gods outside. GO IN YOUR WARDROBE AND WEAR SOMETHING WARM! Or you would become a part of someone's Icecream<|im_end|>
 
 WEATHER: {weather_info}
 FIT: {top_str} (top), {bottom_str} (bottom), {add_str} (extras).
@@ -294,18 +307,33 @@ Roast me based on the weather:<|im_end|>
     output = roastai(prompt, 
         max_new_tokens=70, 
         do_sample=True, 
-        temperature=1.2, # 
+        temperature=1.0, # 
         top_p=0.9,
         return_full_text=False,
         pad_token_id=roastai.tokenizer.eos_token_id)
-    return "You are seriously soo dumb, that you think wearing a thin shirt is going to protect you from the literall snow gods outside. GO IN YOUR WARDROBE AND WEAR SOMETHING WARM! Or you would become a part of someone's Icecream"
-#    return output[0]['generated_text'].strip()
+#    return "You are seriously soo dumb, that you think wearing a thin shirt is going to protect you from the literall snow gods outside. GO IN YOUR WARDROBE AND WEAR SOMETHING WARM! Or you would become a part of someone's Icecream"
+    
+    
+    # I faced issue that AI generated a lot of text and got cut off due to the token limit. So i made this so it only takes the sentence completion, and doesnt show the extra text.
+    #NOTE:This is a very basic BETA method.
+    text = output[0]['generated_text'].strip()
+    
+    last_dot_index = text.rfind('.')
+
+    if last_dot_index != -1:
+        # Slice the string to keep everything up to (and including) that period
+        clean_text = text[:last_dot_index + 1]
+    else:
+        clean_text = text
+    
+    return clean_text
 
 
 
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.GREEN}Loading Window","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
 
+"""
 window = tk.Tk()
 window.title("The Clueless Closet")
 window.geometry("900x850")
@@ -326,4 +354,59 @@ btn.pack()
 
 newframe()
 window.mainloop()
+"""
 
+# The OLD UI which I made looked very old and patchy, this new UI below is made through AI which looks much better. I was also able to add sidebar information and stuff, and it displays everything much better now!
+# AI was used to generate the code below.
+
+window = tk.Tk()
+window.title("The Clueless Closet")
+#window.geometry("1100x700")
+window.configure(bg="#f0f0f0")
+
+# --- MAIN LAYOUT ---
+# Header
+header = tk.Label(window, text="Welcome to The Clueless Closet!", font=("Helvetica", 24, "bold"), bg="#f0f0f0", pady=10)
+header.grid(row=0, column=0, columnspan=2)
+
+# Left Frame (Video & Buttons)
+left_frame = tk.Frame(window, bg="#f0f0f0", padx=20)
+left_frame.grid(row=1, column=0, sticky="n")
+
+videofeed = tk.Label(left_frame, bg="black", width=600, height=400)
+videofeed.pack(pady=10)
+
+btn_frame = tk.Frame(left_frame, bg="#f0f0f0")
+btn_frame.pack()
+
+cam_btn = tk.Button(btn_frame, text="Switch Camera", command=lambda: setup_camera(), bg="orange", fg="white", font=("Arial", 12, "bold"), padx=10)
+cam_btn.pack(side=LEFT, padx=5)
+
+btn = tk.Button(btn_frame, text="SCAN FIT", command=lambda: checkimg(), bg="#2ecc71", fg="white", font=("Arial", 12, "bold"), padx=20)
+btn.pack(side=LEFT, padx=5)
+
+# Right Frame (Sidebar Info)
+sidebar = tk.Frame(window, bg="white", relief=tk.RIDGE, bd=2, padx=15, pady=15)
+sidebar.grid(row=1, column=1, sticky="nsew", padx=10)
+
+# Weather Display
+tk.Label(sidebar, text="Conditions outside", font=("Arial", 10, "bold"), bg="white", fg="gray").pack(anchor="w")
+weather_lbl = tk.Label(sidebar, text=f"Temp: {daily_apparent_temperature_max}°C | Rain: {daily_precipitation_probability_max}%", font=("Arial", 11), bg="white")
+weather_lbl.pack(anchor="w", pady=(0, 15))
+
+# Detections Section
+tk.Label(sidebar, text="I detected you are wearing:", font=("Arial", 10, "bold"), bg="white", fg="gray").pack(anchor="w")
+detect_box = tk.Text(sidebar, height=6, width=40, font=("Consolas", 10), state=DISABLED)
+detect_box.pack(pady=5)
+
+# The Roast (Result)
+tk.Label(sidebar, text="Results", font=("Arial", 10, "bold"), bg="white", fg="gray").pack(anchor="w", pady=(15, 0))
+result = tk.Text(sidebar, height=10, width=40, font=("Arial", 11, "italic"), wrap=WORD, state=DISABLED, bg="#fff0f0")
+result.pack(pady=5)
+
+
+
+
+
+newframe()
+window.mainloop()
