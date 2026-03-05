@@ -4,6 +4,11 @@
     "latitude": 40,
     "longitude": 72,
 
+    "font_file": "font.tiff",
+    "font_size": 24,
+    "font_margin": 10,
+    "txt_bg": [255, 255, 255],
+    "txt_color": [0, 0, 0],
 
 
     "_comment2": "Change if you like being warm or cold. Higher value = Warmer Clothes, Lower value = Colder Clothes. From -5 to 5, 0 is neutral.", 

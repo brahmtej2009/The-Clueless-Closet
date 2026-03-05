@@ -1,6 +1,6 @@
 # The Clueless Closet
 
-Ever been confused about what to wear?
+#### *This project is extremely easy to run, just download and run, no advanced setup needed.*
 Watch this program **brutally roast** you based on your outfit.
 
 It takes into account
@@ -43,6 +43,12 @@ pip install -r requirements.txt
 Double Click the ``main.py`` file, and let it load. It would automatically download and set up AI Model.
 
 Once setup is done, Program would run and you can use it to get yourself tost at any time!
+
+### How to get Roasted
+- Use the Switch Camera feature to switch to the best working camera (If not already done)
+- Stand a bit back so camera can see you, and click the Scan Button.
+- Once your high self esteem has been trashed by the AI, you can take a Snapshot.
+- By taking a snapshot, your image would be saved with the roast in your Diary, accessable at the /diary folder of the project.
 
 # AI Disclosure
 As a developer, all the projects I work on have an AI Disclosure. The same is the case with this project as well.

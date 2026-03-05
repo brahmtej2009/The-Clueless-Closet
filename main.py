@@ -4,24 +4,33 @@
 # IN this project, we detect a user's clothes, match it with the weather, and give recommendations.
 # I am a beginner dev, so the code is not very clean, but it works! I will be improving it over time. 
 
+
 from pytterns import Pytterns
 pt=Pytterns()
 
-# Disable this to turn off AI Loading and only load weather, this is for weather debugging
+# AI takes a lot of time to load, so while development, I just toggle this and it skips AI Loading. So I can see the interface asap.
 quick_launch=False
 
+
+# You would see this code a lot of times here. This renders that good looking panel which comes in the terminal once you run this project
 print("\033c", end="")
 pt.panel(60,content=[""],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
+
+# From here we start importing core dependencies 
 from colorama import Fore, Style
 import time
 
+# Display the Importing Libraries Panel
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.CYAN}Importing Libraries...","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
+
+#Import the libraries
 import cv2
 import requests
 from tkinter import *
 import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw, ImageFont
+# This is here because pipeline takes a long time to import, so to speed up development, I toggle it from above
 if not quick_launch:
     from transformers import pipeline
 import json
@@ -30,15 +39,22 @@ import pandas as pd
 import requests_cache
 from retry_requests import retry
 import torch
+import os
+
+# I had issue when running the code through cmd, as the Path there was the default windows one.. We have to change it to current dir for it to load files from here.
+os.chdir(os.path.dirname(os.path.abspath(__file__))) #Found this from the internet, which is used as a common fix for this issue.
 
 
-
+# Everything is now imported, we load the AI
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.CYAN}Loading AI","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
 
 
 
-# Auto-detect the best hardware
+# As we know, AI works better on GPU. Before this project was complete CPU based, which made it quite slow.
+# This automatically checks for Nvidia/Apple hardware, if not found, then goes to CPU processing.
+
+# I did have some issues with my GPU, Nvidia GTX 1650, with torch. To make it work you need the latest drivers from Nvidia App
 if torch.cuda.is_available():
     current_device = 0  # NVIDIA GPU
 elif torch.backends.mps.is_available():
@@ -46,20 +62,28 @@ elif torch.backends.mps.is_available():
 else:
     current_device = -1 # CPU
     
-print(f"Using device: {current_device}")
-time.sleep(2)
+#print(f"Using device: {current_device}")
+#time.sleep(2)
     
+    
+#Quick launch toggle prevents AI from Loading here.
 if not quick_launch:
+    #This is the AI which scans ur clothes and converts it to words
     ai_model = pipeline("zero-shot-image-classification", model="patrickjohncyh/fashion-clip",device=current_device)
 
 if not quick_launch:
+    # This Ai takes the words and weather data and makes roasts outa that
     roastai = pipeline("text-generation", model="Qwen/Qwen2.5-1.5B-Instruct", device=current_device)
 
+
+# Fetch weather now
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.LIGHTRED_EX}Fetching Weather Data","Loading Data from settings.json file..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
 
+# Load settings file from current directory. 
 try:
     with open("settings.json", "r") as settings:
+        global data
         data=json.load(settings)
 except Exception as e:
     print("\033c", end="")
@@ -67,7 +91,7 @@ except Exception as e:
     print(f"Error: {Style.BRIGHT}{Fore.RED}{e}")
     exit()
 
-
+# This code was fetched from Open-Meteo's official documentation, It retries if the fetch failed, so the code doesnt crash.
 cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
 retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
 openmeteo = openmeteo_requests.Client(session = retry_session)
@@ -84,6 +108,8 @@ params = {
 
 responses = openmeteo.weather_api(url, params=params)  
 response = responses[0]
+
+#Here we display the stuff we got back from the API in the terminal, for dev use.
 print(f"Coordinates: {response.Latitude()}°N {response.Longitude()}°E")
 print(f"Elevation: {response.Elevation()} m asl")
 print(f"Timezone: {response.Timezone()}")
@@ -91,7 +117,7 @@ print(f"Timezone difference to GMT+0: {response.UtcOffsetSeconds()}s")
 
 weather=response.Daily()
 
-# RAIN
+# This is all the stuff which is fetched, It gets displayed in terminal for short time.
 daily_rain_sum = int(weather.Variables(0).ValuesAsNumpy()[0])
 daily_showers_sum = int(weather.Variables(1).ValuesAsNumpy()[0])
 daily_snowfall_sum = int(weather.Variables(2).ValuesAsNumpy()[0])
@@ -103,11 +129,16 @@ daily_temperature_2m_max = int(weather.Variables(7).ValuesAsNumpy()[0])
 daily_temperature_2m_min = int(weather.Variables(8).ValuesAsNumpy()[0])
 daily_apparent_temperature_max = int(weather.Variables(9).ValuesAsNumpy()[0])
 
+# Now we make the stuff which we are going to use in functions Global. I know its not a good practice, but if it works, we dont touch that again.
 global rain_possible
 global snow_possible
+
+# This gives us a basic True or False for rain possibility, works quite good.
 rain_possible=daily_precipitation_probability_max > 50 or daily_precipitation_sum > 0 or daily_showers_sum > 0 or daily_rain_sum > 0 or daily_snowfall_sum > 0
 snow_possible=daily_snowfall_sum > 0
 
+
+# THE heat score logic below is retired, that didnt work as well.
 
 #global heat_score
 #heat_score=data["personal_temp"]
@@ -115,16 +146,27 @@ snow_possible=daily_snowfall_sum > 0
 #In Code below, we add 10 if warm clothes are detected, and subtract 10 if cool clothes are detected, this is to adjust the heat score based on what the user is wearing, so that the recommendation is more accurate. 
 
 
-pt.panel(60,content=[f"{Style.BRIGHT}{Fore.BLUE}RAIN POSSIBLE: {rain_possible}", f"{Style.BRIGHT}{Fore.RED}HEAT SCORE: {0}",f"{Style.BRIGHT}{Fore.GREEN}SNOW POSSIBLE: {snow_possible}"],center=True,border_bold=True,padding=1, center_content=True,title=f"Processed Weather Status",color="Yellow")
+
+# This displays the final processed information in the terminal as a proper panele.
+pt.panel(60,content=[f"{Style.BRIGHT}{Fore.BLUE}RAIN POSSIBLE: {rain_possible}",f"{Style.BRIGHT}{Fore.GREEN}SNOW POSSIBLE: {snow_possible}"],center=True,border_bold=True,padding=1, center_content=True,title=f"Processed Weather Status",color="Yellow")
 
 print("Daily Rain Sum:", daily_rain_sum, type(daily_rain_sum),"\n Daily Showers Sum:",daily_showers_sum,type(daily_showers_sum),"\n Daily Snowfall Sum:",daily_snowfall_sum,type(daily_snowfall_sum),"\n Daily Precipitation Sum: ",daily_precipitation_sum,type(daily_precipitation_sum),"\n Daily Precipitation Hours:",daily_precipitation_hours,type(daily_precipitation_hours),"\n Daily Precipitation Probability Max:",daily_precipitation_probability_max,type(daily_precipitation_probability_max),"\n Daily UV Index Max:",daily_uv_index_max,type(daily_uv_index_max),"\n Daily Temperature 2m Max:",daily_temperature_2m_max,type(daily_temperature_2m_max),"\n Daily Temperature 2m Min:",daily_temperature_2m_min,type(daily_temperature_2m_min),"\n Daily Apparent Temperature Max:",daily_apparent_temperature_max,type(daily_apparent_temperature_max))
-      #print(f"Temperature today: {response.Daily().Temperature2mMax()}°C max, {response.Daily().Temperature2mMin()}°C min")
-time.sleep(10)
 
+
+# We give some time for the person to read this stuff, 3 seconds is enough to kill code at that spot and read it properly.
+time.sleep(3)
+
+
+# Now we load camera
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.BLUE}Loading Camera","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
+
+# Make camera a global, as it is used at a lot of places.
 global cam
 cam=None
+
+# This function starts the camera on the default ID (0) on its first run. Then when triggered again, it changes the camera till the time it cycles back to the default one.
+
 def setup_camera():
     
     #This sets up the cam, and also swaps it when retriggered.
@@ -149,23 +191,35 @@ def setup_camera():
             cap.release()
             cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             cam=0
+            
 current_frame = None
 setup_camera()
+
+# Now we define all the functions which work inter-relatedly to make everything work.
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.YELLOW}DEFINING FUNCTIONS","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
-# This part was generated.
+
+
+# NOTE: This function was AI generated due to its complexity.
 def newframe():
     global current_frame
     ret, frame = cap.read()
     if ret:
         current_frame = frame
-        # Convert BGR (OpenCV) to RGB (Tkinter)
+        # OPENCV USES BGR which needs to be converted to RGB for use with tkinter.. Else it wont work
+        global img
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(img).resize((600, 400))
+#        img = Image.fromarray(img).resize((600, 400)) # I realized i didnt need this later.. it works better without this.
+        
+        img = Image.fromarray(img)
         imgtk = ImageTk.PhotoImage(image=img)
         videofeed.imgtk = imgtk
         videofeed.configure(image=imgtk)
-    window.after(40, newframe) # Repeat every 10ms
+    window.after(40, newframe) # This repeats every 40 ms, giving us that smooth video feel.
+    
+    
+    
+# This is the actual code which checks the frame with the AI and generates everything.
 def checkimg():
 
     #Preparing the image for use with the AI, as it needs conversion. This is generated.
@@ -174,25 +228,29 @@ def checkimg():
     
     
     if not quick_launch:
+        # We scan 3 times, for top, bottom and additional stuff, to make scores for everything
         top_raw=ai_model(pil_img, candidate_labels=data["warm_stuff_top"]+data["cool_stuff_top"], top_k=10)
         bottom_raw=ai_model(pil_img, candidate_labels=data["stuff_bottom"], top_k=10)
         additional_raw=ai_model(pil_img, candidate_labels=data["rain_stuff"]+data["snow_stuff"], top_k=10)
 
     else:
+        # For the quick launch we did above, we exit the code here if it was enabled..
         exit("Quick Launch is enabled, AI is not loaded. Disable quick_launch to use AI features.")
     
     
-    # In this model, the best result is the first one, and the score reduces thereafter.
+    # In this model, the best result is the first one, and the score reduces as we go to the right.
     global best_guess
-    
     global top
     top=[]
+    # Here we just take the raw data, and filter the ones who the AI is confident about, and only include those.
     for i in top_raw:
         if i['score'] > 0.25:  # Only include high-confidence predictions
             top.append(i["label"].lower())
     if len(top)==0:
         top=["AI Couldnt Detect Any Top"]
         
+        
+    # Same here as above, filter stuff which AI is confident about
     global bottom
     bottom=[]
     for i in bottom_raw:
@@ -201,23 +259,31 @@ def checkimg():
     if len(bottom)==0:
         bottom=["User didnt show any lower clothing. Ignore"]
         
-        
+    
+    # Same here, filter stuff which AI is confident about, for additional items like umbrella or snow gear and stuff    
     global additional
     additional=[]
     for i in additional_raw:
-        if i['score'] > 0.45:  # Only include high-confidence predictions
+        if i['score'] > 0.6:  # Only include high-confidence predictions
             additional.append(i["label"].lower())
             print(i["score"], i["label"])
     if len(additional)==0:
         additional=["No additional items, like raincoat or umbrella, were detected. No snow protection related items were detected either."]        
             
     
-    print(f"Top Predictions: {top}")
-    print(f"Bottom Predictions: {bottom}")
-    print(f"Additional Predictions: {additional}")
+    # This prints the stuff out for debug. 
     
-    update_display(roast())
+    #print(f"Top Predictions: {top}")
+    #print(f"Bottom Predictions: {bottom}")
+    #print(f"Additional Predictions: {additional}")
     
+    # This is the AI's roast response, which is given from the roast function below. then we update the panel with that roast.
+    global airoastresp
+    airoastresp = roast()
+    update_display(airoastresp)
+    
+    
+    # This code below was removed because the roast method was changed from static to dynamic ai generated
     """        
 
     warm_top = best_guess in data["warm_stuff_top"]
@@ -258,6 +324,69 @@ def checkimg():
     if warm_top: #We give priority to warm top, because you could have a Jacket and a shirt. Jacket is more important.
         cool_top=False"""
 
+
+
+def diary_log():
+    
+    # Here, we make a snapshot of the user, with the roast, and this is like a track record of all the roasts.
+    
+    img_width, img_height = img.size
+    
+    try:
+        cnfg=ImageFont.truetype(data["font_file"], size=data["font_size"])
+    except:
+        cnfg=ImageFont.load_default()
+        
+    margin = data["font_margin"]
+    max_text_width = img_width - 2 * margin
+    
+        
+    # NOTE: AI was used for this function for proper rendering of text
+    def wrap_text(text, width, font):
+        lines = []
+        for paragraph in text.split('\n'):
+            words = paragraph.split()
+            while words:
+                line = ''
+                while words and font.getbbox(line + words[0])[2] <= width:
+                    line += (words.pop(0) + ' ')
+                lines.append(line.strip())
+        return lines
+
+    # AI helped in all this:
+    wrapped_lines = wrap_text(airoastresp, max_text_width, cnfg)
+
+    line_height = cnfg.getbbox("hg")[3] - cnfg.getbbox("hg")[1]
+    text_height = len(wrapped_lines) * line_height + 2 * margin 
+    new_img_height = img_height + text_height
+
+    new_img = Image.new("RGB", (img_width, new_img_height), tuple(data["txt_bg"]))
+    new_img.paste(img, (0, text_height))
+    
+    # This function was made by help from AI. Due to its complexity.
+    draw = ImageDraw.Draw(new_img)
+    y_position = margin 
+    for line in wrapped_lines:
+        text_width = cnfg.getbbox(line)[2] - cnfg.getbbox(line)[0]
+        x_position = (img_width - text_width) // 2 
+        draw.text((x_position, y_position), line, fill=tuple(data["txt_color"]), font=cnfg)
+        y_position += line_height
+        
+        
+        
+    # I'll ad timestamps to the images so name is never the same.Ig this is also good for diary as it keeps a track of time too.
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    
+    new_filename = f"diary/fit_{timestamp}.jpg"
+    if not os.path.exists("diary"):
+        os.makedirs("diary")
+    
+    # Save the image in the diary folder. (Automatically generated if not present by default)
+    new_img.save(new_filename)  
+    
+        
+    
+
 def update_display(roast_text):
     # This function is AI Generated to combine properly with my code and the AI generated UI
     # Update Detections
@@ -274,17 +403,22 @@ def update_display(roast_text):
 
 
 def roast():
+    
+    # We convert the lists to string for proper rendering here. And pass that as a paragraph to an AI, which then makes the roast for us!
+    
     top_str = ", ".join(top) if isinstance(top, list) else str(top)
     bottom_str = ", ".join(bottom) if isinstance(bottom, list) else str(bottom)
     add_str = "nothing" if "No additional items" in str(additional) else ", ".join(additional)
 
-    print("\n\ntop_str:", top_str)
-    print("bottom_str:", bottom_str)
-    print("add_str:", add_str)
-    # Short, punchy weather context
+# No need for this as its now being shown in tkinter:
+#    print("\n\ntop_str:", top_str)
+#    print("bottom_str:", bottom_str)
+#    print("add_str:", add_str)
+    
+    
     weather_info = f"{daily_apparent_temperature_max}C, UV Index Score {daily_uv_index_max}, {daily_precipitation_probability_max}% rain."
 
-    
+    # This is the paragraph given to AI, i know its a bit rough, but it gets the work done.
    
     prompt = f"""<|im_start|>system
 You are a toxic GenZ fashion bully. Your job is to analyze the user's fit against the weather. You have to be a critic, brutal, harsh, savage and dank. Use all kinds of words
@@ -310,9 +444,8 @@ Roast me based on the weather:<|im_end|>
         temperature=1.0, # 
         top_p=0.9,
         return_full_text=False,
-        pad_token_id=roastai.tokenizer.eos_token_id)
-#    return "You are seriously soo dumb, that you think wearing a thin shirt is going to protect you from the literall snow gods outside. GO IN YOUR WARDROBE AND WEAR SOMETHING WARM! Or you would become a part of someone's Icecream"
-    
+        pad_token_id=roastai.tokenizer.eos_token_id, device=current_device)
+
     
     # I faced issue that AI generated a lot of text and got cut off due to the token limit. So i made this so it only takes the sentence completion, and doesnt show the extra text.
     #NOTE:This is a very basic BETA method.
@@ -321,7 +454,6 @@ Roast me based on the weather:<|im_end|>
     last_dot_index = text.rfind('.')
 
     if last_dot_index != -1:
-        # Slice the string to keep everything up to (and including) that period
         clean_text = text[:last_dot_index + 1]
     else:
         clean_text = text
@@ -329,10 +461,11 @@ Roast me based on the weather:<|im_end|>
     return clean_text
 
 
-
+# Now, everything is done, tkinter launches now and everything comes together!
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.GREEN}Loading Window","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
 
+# This is old menu template, not in use now
 """
 window = tk.Tk()
 window.title("The Clueless Closet")
@@ -357,11 +490,13 @@ window.mainloop()
 """
 
 # The OLD UI which I made looked very old and patchy, this new UI below is made through AI which looks much better. I was also able to add sidebar information and stuff, and it displays everything much better now!
-# AI was used to generate the code below.
+
+# AI was used to generate the code below to make a good looking colorful and modern UI
 
 window = tk.Tk()
 window.title("The Clueless Closet")
-#window.geometry("1100x700")
+# This is not needed, but if user wishes, he can turn uncomment this and set values to make a custom sized window
+#window.geometry("1100x700"))
 window.configure(bg="#f0f0f0")
 
 # --- MAIN LAYOUT ---
@@ -384,6 +519,9 @@ cam_btn.pack(side=LEFT, padx=5)
 
 btn = tk.Button(btn_frame, text="SCAN FIT", command=lambda: checkimg(), bg="#2ecc71", fg="white", font=("Arial", 12, "bold"), padx=20)
 btn.pack(side=LEFT, padx=5)
+
+save_fit = tk.Button(btn_frame, text="Snapshot", command=lambda: diary_log(), bg="#5d00ff", fg="white", font=("Arial", 12, "bold"), padx=20)
+save_fit.pack(side=LEFT, padx=5)
 
 # Right Frame (Sidebar Info)
 sidebar = tk.Frame(window, bg="white", relief=tk.RIDGE, bd=2, padx=15, pady=15)
