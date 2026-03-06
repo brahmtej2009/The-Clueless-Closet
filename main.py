@@ -29,10 +29,11 @@ import cv2
 import requests
 from tkinter import *
 import tkinter as tk
+from tkinter import messagebox
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 # This is here because pipeline takes a long time to import, so to speed up development, I toggle it from above
 if not quick_launch:
-    from transformers import pipeline
+    from transformers import pipeline,GenerationConfig
 import json
 import openmeteo_requests
 import pandas as pd
@@ -40,6 +41,7 @@ import requests_cache
 from retry_requests import retry
 import torch
 import os
+import threading
 
 # I had issue when running the code through cmd, as the Path there was the default windows one.. We have to change it to current dir for it to load files from here.
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #Found this from the internet, which is used as a common fix for this issue.
@@ -73,7 +75,16 @@ if not quick_launch:
 
 if not quick_launch:
     # This Ai takes the words and weather data and makes roasts outa that
-    roastai = pipeline("text-generation", model="Qwen/Qwen2.5-1.5B-Instruct", device=current_device)
+    if current_device == -1:
+        # device doesnt have a GPU, so run a smaller model on CPU
+        roastai = pipeline("text-generation", model="Qwen/Qwen2.5-1.5B-Instruct", device=current_device)
+        pt.panel(60,content=[f"{Style.BRIGHT}{Fore.RED}NO SUPPORTED GPU DETECTED","Fallbacking to Low Performance AI"],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
+        time.sleep(10)
+    else:
+        pt.panel(60,content=[f"{Style.BRIGHT}{Fore.BLUE}Compatible GPU Detected..","Launching best performing AI Model.","If this is the first time,","Please wait for AI To download.","It will take ~10 Minutes"],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
+        roastai = pipeline("text-generation", model="unsloth/Hermes-3-Llama-3.1-8B-bnb-4bit", device=current_device)
+
+     
 
 
 # Fetch weather now
@@ -171,28 +182,30 @@ def setup_camera():
     
     #This sets up the cam, and also swaps it when retriggered.
     global cam
-    print(cam)
+ #   print(cam)
     if cam==None:
-        print("Loading Camera for first time on Default...")
+#        print("Loading Camera for first time on Default...")
         cam=0
         global cap
         cap = cv2.VideoCapture(cam, cv2.CAP_DSHOW) #This was AI's suggestion, this makes camera load much faster in windows through Direct Show.
         
     
     else:
-        print(f"Switching Camera to {cam+1}...")
+#        print(f"Switching Camera to {cam+1}...")
         cap.release()
 
         cap = cv2.VideoCapture(cam+1, cv2.CAP_DSHOW)
         cam+=1
             
         if not cap.isOpened():
-            print("No more cameras found, switching back to default...")
+#            print("No more cameras found, switching back to default...")
             cap.release()
             cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             cam=0
             
 current_frame = None
+
+last_scanned_img = None
 setup_camera()
 
 # Now we define all the functions which work inter-relatedly to make everything work.
@@ -218,13 +231,20 @@ def newframe():
     window.after(40, newframe) # This repeats every 40 ms, giving us that smooth video feel.
     
     
+def multi_threaded_scan():
+    btn.config(state=tk.DISABLED, text="Processing...")
+    threading.Thread(target=checkimg, daemon=True).start()
     
 # This is the actual code which checks the frame with the AI and generates everything.
 def checkimg():
 
+    
+    
     #Preparing the image for use with the AI, as it needs conversion. This is generated.
     img_rgb = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img_rgb)
+    global last_scanned_img
+    last_scanned_img = img.copy()
     
     
     if not quick_launch:
@@ -244,9 +264,9 @@ def checkimg():
     top=[]
     # Here we just take the raw data, and filter the ones who the AI is confident about, and only include those.
     for i in top_raw:
-        if i['score'] > 0.25:  # Only include high-confidence predictions
+        if i['score'] > 0.35:  # Only include high-confidence predictions
             top.append(i["label"].lower())
-    if len(top)==0:
+    if len(top)==0 or "nothing" in top:
         top=["AI Couldnt Detect Any Top"]
         
         
@@ -254,10 +274,10 @@ def checkimg():
     global bottom
     bottom=[]
     for i in bottom_raw:
-        if i['score'] > 0.35:  # Only include high-confidence predictions
+        if i['score'] > 0.45:  # Only include high-confidence predictions
             bottom.append(i["label"].lower())
-    if len(bottom)==0:
-        bottom=["User didnt show any lower clothing. Ignore"]
+    if len(bottom)==0 or "no lower clothing visible" in bottom:
+        bottom=["User didnt show any lower clothing."]
         
     
     # Same here, filter stuff which AI is confident about, for additional items like umbrella or snow gear and stuff    
@@ -266,21 +286,31 @@ def checkimg():
     for i in additional_raw:
         if i['score'] > 0.6:  # Only include high-confidence predictions
             additional.append(i["label"].lower())
-            print(i["score"], i["label"])
-    if len(additional)==0:
+#            print(i["score"], i["label"])
+    if len(additional)==0 or "nothing" in additional:
         additional=["No additional items, like raincoat or umbrella, were detected. No snow protection related items were detected either."]        
             
+
     
     # This prints the stuff out for debug. 
     
     #print(f"Top Predictions: {top}")
-    #print(f"Bottom Predictions: {bottom}")
-    #print(f"Additional Predictions: {additional}")
+    # #print(f"Bottom Predictions: {bottom}")
+    # #print(f"Additional Predictions: {additional}")
+    # 
+    # 
+    #     
+    #Once the image is processed, we have to enable the snapshot button so we can save
+    # (It was disabled at boot)
+    
     
     # This is the AI's roast response, which is given from the roast function below. then we update the panel with that roast.
+
     global airoastresp
     airoastresp = roast()
     update_display(airoastresp)
+    btn.config(state=tk.NORMAL, text="SCAN FIT")
+    save_fit.config(state=NORMAL)
     
     
     # This code below was removed because the roast method was changed from static to dynamic ai generated
@@ -330,7 +360,7 @@ def diary_log():
     
     # Here, we make a snapshot of the user, with the roast, and this is like a track record of all the roasts.
     
-    img_width, img_height = img.size
+    img_width, img_height = last_scanned_img.size
     
     try:
         cnfg=ImageFont.truetype(data["font_file"], size=data["font_size"])
@@ -361,7 +391,7 @@ def diary_log():
     new_img_height = img_height + text_height
 
     new_img = Image.new("RGB", (img_width, new_img_height), tuple(data["txt_bg"]))
-    new_img.paste(img, (0, text_height))
+    new_img.paste(last_scanned_img, (0, text_height))
     
     # This function was made by help from AI. Due to its complexity.
     draw = ImageDraw.Draw(new_img)
@@ -384,7 +414,7 @@ def diary_log():
     # Save the image in the diary folder. (Automatically generated if not present by default)
     new_img.save(new_filename)  
     
-        
+    messagebox.showinfo("Success", "Snapshot Saved!")
     
 
 def update_display(roast_text):
@@ -409,6 +439,7 @@ def roast():
     top_str = ", ".join(top) if isinstance(top, list) else str(top)
     bottom_str = ", ".join(bottom) if isinstance(bottom, list) else str(bottom)
     add_str = "nothing" if "No additional items" in str(additional) else ", ".join(additional)
+    occasion_str=occasion.get()
 
 # No need for this as its now being shown in tkinter:
 #    print("\n\ntop_str:", top_str)
@@ -419,32 +450,47 @@ def roast():
     weather_info = f"{daily_apparent_temperature_max}C, UV Index Score {daily_uv_index_max}, {daily_precipitation_probability_max}% rain."
 
     # This is the paragraph given to AI, i know its a bit rough, but it gets the work done.
-   
-    prompt = f"""<|im_start|>system
-You are a toxic GenZ fashion bully. Your job is to analyze the user's fit against the weather. You have to be a critic, brutal, harsh, savage and dank. Use all kinds of words
-Rules:
-- Logic: If they wear a shirt in freezing cold or have no umbrella in rain, or are wearing a jacket in warm weather, shame them brutally. Roast and cook them without limits, be rude like a bully.
-- If the fit makes sense for the weather, sarcastically roast their fit BRUTALLY.
-- Be brutal, Shame them if their fit does not match their weather. If they dont have the right gear for the weather, Include extra sentence to Extra Shame on that. 
-- NO poetic metaphors. Max 3 Brief SHORT sentences. DO not exceed word limit of 60. No Censorship. Simple Human Brutal English, Shame and Insult me.<|im_end|>
-<|im_start|>user
+    
 
+
+
+    prompt = f"""<|im_start|>system
+You are a toxic GenZ fashion bully. Analyze the user's fit vs the weather.
+Rules:
+- Style: Brutal, GenZ slang, hater energy. No poetic metaphors.
+- Logic: If fit vs weather is a fail, max aggression. If it matches, roast the style sarcastically.
+- Constraint: Max 2 sentences. No yapping. Stop immediately.
+- Generation: You have to roast ME. Not my items. Roast like a human bully would tease me.
+- Censorship: No Rudeness Filter
+<|im_end|>
+
+<|im_start|>user
+WEATHER: 2C, UV Index 1, 80% rain.
+FIT: T-shirt (top), Mesh Shorts (bottom), Slippers (extras).
+Personal Temp: -5
+Occasion: School
+Example Output:You're so cold, even your common sense has frostbite. You are here like its a beach day, you absolute clown. Cover Yourself!
+<|im_end|>
+
+<|im_start|>user
 WEATHER: {weather_info}
 FIT: {top_str} (top), {bottom_str} (bottom), {add_str} (extras).
-Personal Temp: {data["personal_temp"]} This number shows: Lower the number, less temperature I like. Higher the number, more heat I like. default 0
-Example: You are seriously soo dumb, that you think wearing a thin shirt is going to protect you from the literall snow gods outside. GO IN YOUR WARDROBE AND WEAR SOMETHING WARM! Or you would become a part of someone's Icecream<|im_end|>
-
-Roast me based on the weather:<|im_end|>
+Personal Temp Pref: {data["personal_temp"]} (Lower=likes cold, Higher=likes heat)
+Occasion: {occasion_str}
+<|im_end|>
 <|im_start|>assistant\n"""
-
+    
     # All the parameters here are complete hit and try for me. If some other value works better here, please let me know.
-    output = roastai(prompt, 
-        max_new_tokens=70, 
-        do_sample=True, 
-        temperature=1.0, # 
-        top_p=0.9,
-        return_full_text=False,
-        pad_token_id=roastai.tokenizer.eos_token_id, device=current_device)
+    roast_config = GenerationConfig(
+    max_new_tokens=250,
+    do_sample=True,
+    temperature=0.6,
+    top_p=0.95,
+    top_k=50,
+    repetition_penalty=1.1,
+    pad_token_id=roastai.tokenizer.eos_token_id)
+    
+    output = roastai(prompt, generation_config=roast_config,return_full_text=False)
 
     
     # I faced issue that AI generated a lot of text and got cut off due to the token limit. So i made this so it only takes the sentence completion, and doesnt show the extra text.
@@ -465,31 +511,6 @@ Roast me based on the weather:<|im_end|>
 print("\033c", end="")
 pt.panel(60,content=[f"{Style.BRIGHT}{Fore.GREEN}Loading Window","Please wait..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Yellow")
 
-# This is old menu template, not in use now
-"""
-window = tk.Tk()
-window.title("The Clueless Closet")
-window.geometry("900x850")
-
-label = Label(window, text="Welcome to The Clueless Closet!", font=("Arial", 16)).pack()
-#w= Frame(window, width=600, height=400).pack() This is a mistake, I thought I would need a frame to hold the video feed, but it is not necessary.
-videofeed = tk.Label(window)
-videofeed.pack()
-
-result = Text(window, height=10, width=100)
-result.pack()
-
-cam_btn=tk.Button(window, text="Switch Camera", command=lambda:setup_camera())
-cam_btn.pack()  
-
-btn = tk.Button(window, text="SCAN", command=lambda: checkimg())
-btn.pack()
-
-newframe()
-window.mainloop()
-"""
-
-# The OLD UI which I made looked very old and patchy, this new UI below is made through AI which looks much better. I was also able to add sidebar information and stuff, and it displays everything much better now!
 
 # AI was used to generate the code below to make a good looking colorful and modern UI
 
@@ -511,26 +532,37 @@ left_frame.grid(row=1, column=0, sticky="n")
 videofeed = tk.Label(left_frame, bg="black", width=600, height=400)
 videofeed.pack(pady=10)
 
+
 btn_frame = tk.Frame(left_frame, bg="#f0f0f0")
 btn_frame.pack()
 
 cam_btn = tk.Button(btn_frame, text="Switch Camera", command=lambda: setup_camera(), bg="orange", fg="white", font=("Arial", 12, "bold"), padx=10)
 cam_btn.pack(side=LEFT, padx=5)
 
-btn = tk.Button(btn_frame, text="SCAN FIT", command=lambda: checkimg(), bg="#2ecc71", fg="white", font=("Arial", 12, "bold"), padx=20)
+btn = tk.Button(btn_frame, text="SCAN FIT", command=multi_threaded_scan, bg="#2ecc71", fg="white", font=("Arial", 12, "bold"), padx=20)
 btn.pack(side=LEFT, padx=5)
 
 save_fit = tk.Button(btn_frame, text="Snapshot", command=lambda: diary_log(), bg="#5d00ff", fg="white", font=("Arial", 12, "bold"), padx=20)
+save_fit.config(state=tk.DISABLED)
+
 save_fit.pack(side=LEFT, padx=5)
 
 # Right Frame (Sidebar Info)
 sidebar = tk.Frame(window, bg="white", relief=tk.RIDGE, bd=2, padx=15, pady=15)
 sidebar.grid(row=1, column=1, sticky="nsew", padx=10)
 
+# Occasion Blank
+
+tk.Label(sidebar, text="Occasion", font=("Arial", 10, "bold"), bg="white", fg="black").pack(anchor="w")
+occasion = entry = tk.Entry(sidebar, width=30)
+occasion.pack(anchor="w", pady=(0, 15))
+
+
 # Weather Display
 tk.Label(sidebar, text="Conditions outside", font=("Arial", 10, "bold"), bg="white", fg="gray").pack(anchor="w")
 weather_lbl = tk.Label(sidebar, text=f"Temp: {daily_apparent_temperature_max}°C | Rain: {daily_precipitation_probability_max}%", font=("Arial", 11), bg="white")
 weather_lbl.pack(anchor="w", pady=(0, 15))
+
 
 # Detections Section
 tk.Label(sidebar, text="I detected you are wearing:", font=("Arial", 10, "bold"), bg="white", fg="gray").pack(anchor="w")
@@ -547,4 +579,8 @@ result.pack(pady=5)
 
 
 newframe()
+print("\033c", end="")
+pt.panel(60,content=[f"{Style.BRIGHT}{Fore.GREEN}Started...","Please open the Launched Window..."],center=True,border_bold=True,padding=1, center_content=True,title=f"Welcome to Clueless Closet",color="Cyan")
+
 window.mainloop()
+

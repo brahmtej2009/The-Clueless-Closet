@@ -48,7 +48,11 @@ Once setup is done, Program would run and you can use it to get yourself tost at
 - Use the Switch Camera feature to switch to the best working camera (If not already done)
 - Stand a bit back so camera can see you, and click the Scan Button.
 - Once your high self esteem has been trashed by the AI, you can take a Snapshot.
-- By taking a snapshot, your image would be saved with the roast in your Diary, accessable at the /diary folder of the project.
+
+### Snapshots
+- Snapshots save your image with the roast at the `./diary` folder as a file, so you can save that or share that anywhere you want.
+
+There are a lot of settings in the settings.json, in which you can edit the snapshot configuration. You can also change font.
 
 # AI Disclosure
 As a developer, all the projects I work on have an AI Disclosure. The same is the case with this project as well.
