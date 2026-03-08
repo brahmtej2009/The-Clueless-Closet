@@ -290,7 +290,7 @@ def checkimg():
     
 
 
-def diary_log():
+def snapshot():
     
     # Here, we make a snapshot of the user, with the roast, and this is like a track record of all the roasts.
     
@@ -505,7 +505,7 @@ btn = tk.Button(btn_container, text="🔍 SCAN FIT",
 btn.pack(side=tk.LEFT, padx=6)
 
 save_fit = tk.Button(btn_container, text="📸 Snapshot", 
-                     command=lambda: diary_log(),
+                     command=lambda: snapshot(),
                      bg="#5d00ff", fg="white", activebackground="#5d00ff", 
                      activeforeground="white", font=("Arial", 12, "bold"), 
                      padx=20, pady=10, width=12,
