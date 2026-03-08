@@ -3,6 +3,8 @@
     "_comment1": "LATITUDE AND LONGITUDE OF YOUR CITY, TO PREDICT WEATHER. GET IT FROM GOOGLE MAPS",
     "latitude": 40,
     "longitude": 72,
+    "_comment2": "Change if you like being warm or cold. Higher value = Warmer Clothes, Lower value = Colder Clothes. From -5 to 5, 0 is neutral.", 
+    "personal_temp": 0,
 
     "font_file": "font.tiff",
     "font_size": 50,
@@ -11,8 +13,9 @@
     "txt_color": [0, 0, 0],
 
 
-    "_comment2": "Change if you like being warm or cold. Higher value = Warmer Clothes, Lower value = Colder Clothes. From -5 to 5, 0 is neutral.", 
-    "personal_temp": 0,
+    "personality": "roast",
+
+
     
     "warm_stuff_top": ["jacket", "cardigan", "sweater", "hoodie", "parka", "windbreaker", "turtleneck", "blazer", "ski","sweatshirt","coat","vest","nothing"],
     "cool_stuff_top": ["t-shirt", "jersey", "shirt", "polo", "tank top", "vest","nothing"],

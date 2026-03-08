@@ -25,24 +25,27 @@ Wearing stuff which is mostly white would cause issues, as white color is quite 
 # Setup
 > This is tested for Windows Environments ONLY! It may not work correctly in Linux or other OS.
 
-### File Install
+### 1. File Install
 Use this command in your terminal (Make sure you have git installed)
 
 ```ps
 git clone "https://github.com/brahmtej2009/The-Clueless-Closet"
 ```
 *Alternatively, you can download files from github and proceed...*
-### Dependencies Install
+### 2. Dependencies Install
 Open the folder, and run this command
 
 ```ps
 pip install -r requirements.txt
 ```
 
-### Run
+### 3. Run
 Double Click the ``main.py`` file, and let it load. It would automatically download and set up AI Model.
 
 Once setup is done, Program would run and you can use it to get yourself tost at any time!
+
+
+# Other Tips & Docs
 
 ### How to get Roasted
 - Use the Switch Camera feature to switch to the best working camera (If not already done)
@@ -54,8 +57,16 @@ Once setup is done, Program would run and you can use it to get yourself tost at
 
 There are a lot of settings in the settings.json, in which you can edit the snapshot configuration. You can also change font.
 
+### Personalities
+Now, the project supports personalities too! You can set it in the `settings.json`. 
+Personalities change the UI, Output as well as the snapshot template.
+Current Personalities:
+- `roast` (It roasts you based on our outfit)
+- `grandma` (It pampers you and loves you regardless of your life choices)
+- `hypeman` (It is always over hyped, and actually helpful)
+- `dad` (It just tells you dadjokes)
 # AI Disclosure
-As a developer, all the projects I work on have an AI Disclosure. The same is the case with this project as well.
+As a developer, I feel it is utmost important to mark AI Contributions in the project. Gemini was used in this to make images and help with programming topics which I did not know of.  
 Any place where AI was used, is properly marked through use of comments.
 
 # Contribute
