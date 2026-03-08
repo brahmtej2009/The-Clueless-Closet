@@ -39,7 +39,11 @@ Open the folder, and run this command
 pip install -r requirements.txt
 ```
 
-### 3. Run
+### 3. Config
+Open the `settings.json` in any file editor and edit the settings.
+Set your location (Longitude, Latitude) and it would fetch weather of that place.
+There are a lot of other parameters which you can edit in the settings.
+### 4. Run
 Double Click the ``main.py`` file, and let it load. It would automatically download and set up AI Model.
 
 Once setup is done, Program would run and you can use it to get yourself tost at any time!
